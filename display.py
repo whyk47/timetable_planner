@@ -66,4 +66,4 @@ if __name__ == "__main__":
     if result:
         for r in result:
             print(r)
-            display_timetable(list(all_courses.values()), {k: v for k, v in r[2]})
+            display_timetable(list(all_courses.values()), {k: v for k, v in r[1]})

@@ -90,17 +90,17 @@ class Top20Tracker:
             []
         )  # Elements will be (free_days, streak, assignment_dict, module_list)
 
-    def add_solution(self, free_days: int, streak: int, assignment: dict):
+    def add_solution(self, score: tuple[int, ...], assignment: dict):
         # We store (free_days, streak) as the priority key.
         # Python's heapq is a min-heap, so the "smallest" of our top 20 is at the top.
-        entry = (free_days, streak, list(assignment.items()))
+        entry = (score, list(assignment.items()))
 
         if len(self.heap) < self.limit:
             heapq.heappush(self.heap, entry)
         else:
             # If current solution is better than the worst in our top 20
             # (Comparisons work lexicographically: free_days first, then streak)
-            if (free_days, streak) > (self.heap[0][0], self.heap[0][1]):
+            if score > self.heap[0][0]:
                 heapq.heapreplace(self.heap, entry)
 
     def get_sorted_results(self):
@@ -108,13 +108,16 @@ class Top20Tracker:
         return sorted(self.heap, key=lambda x: (x[0], x[1]), reverse=True)
 
 
-def get_free_days(
+def get_score(
     assignment: dict[str, str], courses_dict: dict[str, Course]
-) -> tuple[int, int]:
+) -> tuple[int, int, int]:
+    morning_lessons = 0
     busy_days = [False] * (DAYS + 1)
     mandatory = {"Tut", "Sem", "Lab"}
     for code, idx in assignment.items():
         for lesson in courses_dict[code].indexes[idx]:
+            if lesson.start < 9:
+                morning_lessons += 1
             if any(m in lesson.lesson_type for m in mandatory):
                 busy_days[lesson.day - 1] = True
     cur_streak, max_streak = 0, 0
@@ -124,7 +127,7 @@ def get_free_days(
         else:
             cur_streak += 1
             max_streak = max(max_streak, cur_streak)
-    return DAYS + 1 - sum(busy_days), max_streak
+    return DAYS + 1 - sum(busy_days), max_streak, -morning_lessons
 
 
 def run_planner(all_courses: list[Course], num_to_select: int):
@@ -144,11 +147,9 @@ def run_planner(all_courses: list[Course], num_to_select: int):
 
         if planner.solutions:
             total_solutions += len(planner.solutions)
-            # Bucket Sort results by Free Days
-            buckets = [[[] for _ in range(DAYS + 1)] for _ in range(DAYS + 1)]
             for sol in planner.solutions:
-                free_days, streak = get_free_days(sol, planner.courses_dict)
-                top_solutions.add_solution(free_days, streak, sol)
+                score = get_score(sol, planner.courses_dict)
+                top_solutions.add_solution(score, sol)
     return top_solutions.get_sorted_results()
 
 
