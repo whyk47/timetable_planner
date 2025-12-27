@@ -113,7 +113,7 @@ class TimetableGUI:
         time_slots = range(8, 19)
 
         for hour in time_slots:
-            row_data = [f"{hour:02d}00"]
+            row_data = [f"{hour:02d}30"]
             for day in days:
                 cell_text = ""
                 # Find if any course is in this slot
