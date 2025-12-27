@@ -83,8 +83,8 @@ class CSPPlanner:
 
 
 # --- Main Bucket Sort Integration ---
-class Top20Tracker:
-    def __init__(self, limit: int = 20):
+class Heap:
+    def __init__(self, limit: int = 50):
         self.limit = limit
         self.heap = (
             []
@@ -105,7 +105,7 @@ class Top20Tracker:
 
     def get_sorted_results(self):
         # Return results sorted from best to worst
-        return sorted(self.heap, key=lambda x: (x[0], x[1]), reverse=True)
+        return sorted(self.heap, key=lambda x: x[0], reverse=True)
 
 
 def get_score(
@@ -116,10 +116,12 @@ def get_score(
     mandatory = {"Tut", "Sem", "Lab"}
     for code, idx in assignment.items():
         for lesson in courses_dict[code].indexes[idx]:
-            if lesson.start < 9:
-                morning_lessons += 1
             if any(m in lesson.lesson_type for m in mandatory):
                 busy_days[lesson.day - 1] = True
+                if lesson.start < 9:
+                    morning_lessons += 2
+                elif lesson.start < 10:
+                    morning_lessons += 1
     cur_streak, max_streak = 0, 0
     for day in busy_days * 2:
         if day:
@@ -133,7 +135,7 @@ def get_score(
 def run_planner(all_courses: list[Course], num_to_select: int):
     all_combos = list(combinations(all_courses, num_to_select))
     total_solutions = 0
-    top_solutions = Top20Tracker(limit=20)
+    top_solutions = Heap()
 
     pbar = tqdm(all_combos, desc="Scanning")
 

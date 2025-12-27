@@ -57,6 +57,7 @@ if __name__ == "__main__":
         "SC1006",
         "SC2203",
         "AB2008",
+        "BC2406",
     ]
     all_courses = process_all_courses("raw_data", target_courses=target_courses)
     target_num = 7
