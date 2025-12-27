@@ -55,7 +55,9 @@ class TimetableGUI:
         style.configure("Treeview", rowheight=45, font=("Segoe UI", 10))
         style.configure("Treeview.Heading", font=("Segoe UI", 11, "bold"))
 
-        self.tree_frame = tk.Frame(self.root)
+        self.tree_frame = tk.Frame(
+            self.root, highlightbackground="black", highlightthickness=1
+        )
         self.tree_frame.pack(expand=True, fill="both", padx=20, pady=10)
 
         columns = ("Time", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -99,7 +101,7 @@ class TimetableGUI:
         # Update Labels
         self.title_label.config(text=f"Rank #{self.current_index + 1}")
         self.score_label.config(
-            text=f"Score: {f_days} Free Days | Longest Streak: {streak} Days | Morning Lessons: {-morning_lessons}"
+            text=f"Score: {f_days} Free Days | Longest Streak: {streak} Days | Morning Blues: {-morning_lessons}"
         )
         self.mods_label.config(
             text="Indexes:\n" + ", ".join([f"{k}: {v}" for k, v in assignment])
@@ -151,14 +153,21 @@ if __name__ == "__main__":
         "AD1102",
         "CC0001",
         "SC1006",
-        "SC2203",
-        "AB2008",
+        # "SC2203",
+        # "AB2008",
         "BC2406",
     ]
     all_courses = process_all_courses("raw_data", target_courses=target_courses)
     target_num = 7
-    result = run_planner(list(all_courses.values()), target_num)
+    result = run_planner(
+        list(all_courses.values()),
+        {"AB1201": "00182", "AB1601": "00871", "AD1102": "00109"},
+        target_num,
+    )
 
     # 2. Launch the Pop-up Window
     # results should be sorted: tracker.get_sorted_results()
-    TimetableGUI(result, all_courses)
+    if result:
+        TimetableGUI(result, all_courses)
+    else:
+        print("No valid timetable could be generated.")

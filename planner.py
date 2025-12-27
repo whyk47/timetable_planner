@@ -1,4 +1,5 @@
 import heapq
+from copy import deepcopy
 from itertools import combinations
 
 from tqdm import tqdm
@@ -10,8 +11,13 @@ from pruning_grid import PruningGrid
 
 # --- CSP Solver Logic ---
 class CSPPlanner:
-    def __init__(self, selected_courses: list[Course]):
-        self.selected_courses = selected_courses
+    def __init__(
+        self, selected_courses: list[Course], registered_indexes: dict[str, str] = {}
+    ):
+        self.selected_courses = [
+            k for k in selected_courses if k.code not in registered_indexes
+        ]
+        self.registered_indexes = registered_indexes
         self.courses_dict = {c.code: c for c in selected_courses}
         self.solutions = []
 
@@ -54,7 +60,7 @@ class CSPPlanner:
         for idx in valid_indices:
             # We must use a fresh grid for the next branch (Deep Copy Simulation)
             # In Python, for speed, we generate a new grid from current state
-            branch_grid = self.create_branch_grid(grid)
+            branch_grid = deepcopy(grid)
 
             # Remove other indices of the SAME course from the grid
             for other_idx in course.indexes:
@@ -70,21 +76,10 @@ class CSPPlanner:
             self.solve(remaining, branch_grid, assignment)
             del assignment[course.code]
 
-    def create_branch_grid(self, current_grid: PruningGrid) -> PruningGrid:
-        """Helper to create a copy of the grid state for backtracking."""
-        import copy
-
-        new_grid = PruningGrid(self.courses_dict)
-        # Manually sync the sets to match the current_grid state
-        for d in range(DAYS):
-            for t in range(TIMESLOTS):
-                new_grid.grid[d][t] = current_grid.grid[d][t].copy()
-        return new_grid
-
 
 # --- Main Bucket Sort Integration ---
 class Heap:
-    def __init__(self, limit: int = 50):
+    def __init__(self, limit: int = 100):
         self.limit = limit
         self.heap = (
             []
@@ -132,26 +127,47 @@ def get_score(
     return DAYS + 1 - sum(busy_days), max_streak, -morning_lessons
 
 
-def run_planner(all_courses: list[Course], num_to_select: int):
-    all_combos = list(combinations(all_courses, num_to_select))
-    total_solutions = 0
+def run_planner(
+    all_courses: list[Course], registered_indexes: dict[str, str], num_to_select: int
+):
+    unassigned_courses = [c for c in all_courses if c.code not in registered_indexes]
+    all_combos = list(
+        combinations(unassigned_courses, num_to_select - len(registered_indexes))
+    )
+    courses = {c.code: c for c in all_courses}
+    for course_code, index in registered_indexes.items():
+        index_keys = courses[course_code].indexes.keys()
+        if index not in index_keys:
+            for k in index_keys:
+                if index in k:
+                    registered_indexes[course_code] = k
+                    break
     top_solutions = Heap()
 
     pbar = tqdm(all_combos, desc="Scanning")
 
     for combo in pbar:
-        planner = CSPPlanner(list(combo))
+        planner = CSPPlanner(list(combo), registered_indexes)
         # Initial grid with only the courses in this specific combination
         for day in range(DAYS):
-            grid = PruningGrid({c.code: c for c in combo})
+            grid = PruningGrid(courses, registered_indexes)
             grid.prune_day(day + 1)
-            planner.solve(list(combo), grid, {})
+            planner.solve(list(combo), grid, registered_indexes.copy())
 
-        if planner.solutions:
-            total_solutions += len(planner.solutions)
-            for sol in planner.solutions:
-                score = get_score(sol, planner.courses_dict)
-                top_solutions.add_solution(score, sol)
+            if planner.solutions:
+                for sol in planner.solutions:
+                    score = get_score(sol, courses)
+                    top_solutions.add_solution(score, sol)
+    if not top_solutions.heap:
+        for combo in pbar:
+            planner = CSPPlanner(list(combo), registered_indexes)
+            grid = PruningGrid(courses, registered_indexes)
+            planner.solve(list(combo), grid, registered_indexes.copy())
+
+            if planner.solutions:
+                for sol in planner.solutions:
+                    score = get_score(sol, courses)
+                    top_solutions.add_solution(score, sol)
     return top_solutions.get_sorted_results()
 
 
@@ -166,4 +182,4 @@ if __name__ == "__main__":
         "SC1006",
     ]
     extracted_courses = process_all_courses("raw_data", target_courses=target_courses)
-    run_planner(list(extracted_courses.values()), 7)
+    run_planner(list(extracted_courses.values()), {}, 7)

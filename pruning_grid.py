@@ -3,7 +3,9 @@ from models import DAYS, TIMESLOTS, Course, Lesson
 
 
 class PruningGrid:
-    def __init__(self, all_courses: dict[str, Course]):
+    def __init__(
+        self, all_courses: dict[str, Course], registered_indexes: dict[str, str] = {}
+    ):
         self.all_courses = all_courses
         self.grid = [[set() for _ in range(TIMESLOTS)] for _ in range(DAYS)]
         for course in all_courses.values():
@@ -12,6 +14,9 @@ class PruningGrid:
                     for day, start in lesson.periods:
                         slot = self.slot(day, start)
                         slot.add((course.code, index))
+        for course_code, index in registered_indexes.items():
+            for lesson in all_courses[course_code].indexes[index]:
+                self.prune(lesson)
 
     def slot(self, day: int, start: int) -> set:
         if day < 1 or day > DAYS or start < 8 or start >= 8 + TIMESLOTS:
