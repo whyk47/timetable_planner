@@ -95,12 +95,12 @@ class TimetableGUI:
     def update_view(self):
         # Get data for current rank
         score, assignment = self.top_results[self.current_index]
-        f_days, streak, morning_lessons = score
+        f_days, streak, morning_lessons, aus = score
 
         # Update Labels
         self.title_label.config(text=f"Rank #{self.current_index + 1}")
         self.score_label.config(
-            text=f"Score: {f_days} Free Days | Longest Streak: {streak} Days | Morning Blues: {-morning_lessons}"
+            text=f"Score: {f_days} Free Days | Longest Streak: {streak} Days | Morning Blues: {-morning_lessons} | AUs: {aus}"
         )
         self.mods_label.config(
             text="Indexes:\n" + ", ".join([f"{k}: {v}" for k, v in assignment])

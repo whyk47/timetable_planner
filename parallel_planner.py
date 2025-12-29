@@ -95,12 +95,9 @@ class Planner:
         Standalone function to handle a single combination.
         This runs in a separate process.
         """
-        # Initialize a local results list for this process
         local_solutions = SolutionHeap(self.all_courses, limit=limit)
 
-        # You must recreate the local state inside the worker
-        # since 'self' isn't naturally shared across processes
-        for day in range(DAYS):  # DAYS = 7
+        for day in range(DAYS):
             clashing = self.pruning_grid.prune_day(day + 1)
             new_pruned = self.pruning_grid.get_new_pruned(clashing, self.pruned_indexes)
             pruned = self.pruning_grid.add_new_pruned(
@@ -114,8 +111,6 @@ class Planner:
                 local_solutions,
             )
             pruned = self.pruning_grid.remove_new_pruned(new_pruned, pruned)
-            # Assume solve_logic is a version of your solver that returns results
-            # rather than modifying a global 'self'
         return local_solutions.get_sorted_results()
 
     def run_planner(self) -> list[HeapEntry]:
@@ -125,21 +120,17 @@ class Planner:
             )
         )
         with ProcessPoolExecutor() as executor:
-            # Submit all tasks
             futures = {
                 executor.submit(
                     self.worker_task, set(combo), max(10, 50 // len(all_combos))
                 ): combo
                 for combo in all_combos
             }
-
-            # Use tqdm to track progress as futures complete
             for future in tqdm(
                 as_completed(futures), total=len(all_combos), desc="Parallel Scanning"
             ):
                 try:
                     found_sols = future.result()
-                    # Feed the results into your existing heap logic
                     for entry in found_sols:
                         self.solution_heap.add_heap_entry(entry)
                 except Exception as exc:
@@ -153,9 +144,9 @@ if __name__ == "__main__":
 
     extracted_courses = process_all_courses("raw_data")
     assigned_indexes = {
-        "AB1201": "00182",
-        "AB1601": "00871",
-        "AD1102": "00109",
+        # "AB1201": "00182",
+        # "AB1601": "00871",
+        # "AD1102": "00109",
     }
     planner = Planner(
         extracted_courses, target_num=7, assigned_indexes=assigned_indexes

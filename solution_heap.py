@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from models import DAYS, Course
 
-type Score = tuple[int, int, int]  # (free_days, max_streak, -morning_lessons)
+type Score = tuple[int, int, int, int]  # (free_days, max_streak, -morning_lessons)
 type Assignment = tuple[tuple[str, str], ...]  # ((course_code, index), ...)
 type HeapEntry = tuple[Score, Assignment]
 
@@ -32,7 +32,8 @@ class SolutionHeap:
             else:
                 cur_streak += 1
                 max_streak = max(max_streak, cur_streak)
-        return DAYS + 1 - sum(busy_days), max_streak, -morning_lessons
+        aus = sum(self.all_courses[code].aus for code in assignment)
+        return DAYS + 1 - sum(busy_days), max_streak, -morning_lessons, aus
 
     def add_solution(self, assignment: dict[str, str]):
         score = self.get_score(assignment)
