@@ -5,6 +5,8 @@ from typing import Iterable
 from load import process_all_courses
 from models import DAYS, TIMESLOTS, Course, Lesson
 
+type PruningList = defaultdict[str, set[str]] | dict[str, set[str]]
+
 
 @dataclass
 class PruningGrid:
@@ -29,7 +31,7 @@ class PruningGrid:
             raise ValueError("Invalid day or start time for slot retrieval.")
         return self.grid[day - 1][start - 8]
 
-    def clashing_indexes(self, lessons: Iterable[Lesson]) -> defaultdict[str, set[str]]:
+    def clashing_indexes(self, lessons: Iterable[Lesson]) -> PruningList:
         indexes = defaultdict(set)
         for lesson in lessons:
             for day, start in lesson.periods:
@@ -38,13 +40,36 @@ class PruningGrid:
                     indexes[code].add(index)
         return indexes
 
-    def prune_day(self, day: int) -> defaultdict[str, set[str]]:
+    def prune_day(self, day: int) -> PruningList:
         indexes = defaultdict(set)
         for start in range(8, 8 + TIMESLOTS):
             slot = self.slot(day, start)
             for code, index in slot:
                 indexes[code].add(index)
         return indexes
+
+    @staticmethod
+    def get_new_pruned(
+        clashing: PruningList, pruned_indexes: PruningList
+    ) -> PruningList:
+        new_pruned = {idx: clashing[idx] - pruned_indexes[idx] for idx in clashing}
+        return new_pruned
+
+    @staticmethod
+    def add_new_pruned(
+        new_pruned: PruningList, pruned_indexes: PruningList
+    ) -> PruningList:
+        for idx in new_pruned:
+            pruned_indexes[idx] |= new_pruned[idx]
+        return pruned_indexes
+
+    @staticmethod
+    def remove_new_pruned(
+        new_pruned: PruningList, pruned_indexes: PruningList
+    ) -> PruningList:
+        for idx in new_pruned:
+            pruned_indexes[idx] -= new_pruned[idx]
+        return pruned_indexes
 
 
 if __name__ == "__main__":

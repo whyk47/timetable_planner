@@ -3,16 +3,18 @@ from dataclasses import dataclass, field
 
 from models import DAYS, Course
 
+type Score = tuple[int, int, int]  # (free_days, max_streak, -morning_lessons)
+type Assignment = tuple[tuple[str, str], ...]  # ((course_code, index), ...)
+type HeapEntry = tuple[Score, Assignment]
+
 
 @dataclass
 class SolutionHeap:
     all_courses: dict[str, Course]
     limit: int = 50
-    heap: list[tuple[tuple[int, ...], tuple[tuple[str, str], ...]]] = field(
-        default_factory=list
-    )
+    heap: list[HeapEntry] = field(default_factory=list)
 
-    def get_score(self, assignment: dict[str, str]) -> tuple[int, int, int]:
+    def get_score(self, assignment: dict[str, str]) -> Score:
         morning_lessons, busy_days = 0, [False] * (DAYS + 1)
         mandatory = {"Tut", "Sem", "Lab"}
         for code, idx in assignment.items():
@@ -35,12 +37,14 @@ class SolutionHeap:
     def add_solution(self, assignment: dict[str, str]):
         score = self.get_score(assignment)
         entry = (score, tuple(assignment.items()))
+        self.add_heap_entry(entry)
 
+    def add_heap_entry(self, entry: HeapEntry):
         if len(self.heap) < self.limit:
             heapq.heappush(self.heap, entry)
         else:
-            if score > self.heap[0][0]:
+            if entry[0] > self.heap[0][0]:
                 heapq.heapreplace(self.heap, entry)
 
-    def get_sorted_results(self):
+    def get_sorted_results(self) -> list[HeapEntry]:
         return sorted(self.heap, key=lambda x: x[0], reverse=True)

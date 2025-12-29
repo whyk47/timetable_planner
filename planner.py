@@ -5,8 +5,8 @@ from itertools import combinations
 from tqdm import tqdm
 
 from models import DAYS, Course
-from pruning_grid import PruningGrid
-from solution_heap import SolutionHeap
+from pruning_grid import PruningGrid, PruningList
+from solution_heap import HeapEntry, SolutionHeap
 
 
 @dataclass
@@ -14,9 +14,7 @@ class Planner:
     all_courses: dict[str, Course]
     target_num: int
     assigned_indexes: dict[str, str] = field(default_factory=dict)
-    pruned_indexes: defaultdict[str, set[str]] = field(
-        default_factory=lambda: defaultdict(set)
-    )
+    pruned_indexes: PruningList = field(default_factory=lambda: defaultdict(set))
     unassigned_courses: set[str] = field(init=False)
     pruning_grid: PruningGrid = field(init=False)
     solution_heap: SolutionHeap = field(init=False)
@@ -52,15 +50,13 @@ class Planner:
                 mrv = course_code
         return mrv
 
-    def add_new_pruned(
-        self, clashing: defaultdict[str, set[str]]
-    ) -> dict[str, set[str]]:
+    def add_new_pruned(self, clashing: PruningList) -> PruningList:
         new_pruned = {idx: clashing[idx] - self.pruned_indexes[idx] for idx in clashing}
         for idx in new_pruned:
             self.pruned_indexes[idx] |= new_pruned[idx]
         return new_pruned
 
-    def remove_pruned(self, new_pruned: dict[str, set[str]]):
+    def remove_pruned(self, new_pruned: PruningList):
         for idx in new_pruned:
             self.pruned_indexes[idx] -= new_pruned[idx]
 
@@ -81,18 +77,18 @@ class Planner:
             self.remove_pruned(new_pruned)
         self.unassigned_courses.add(course_code)
 
-    def run_planner(self):
+    def run_planner(self) -> list[HeapEntry]:
         all_combos = tuple(
             combinations(
                 self.unassigned_courses, self.target_num - len(self.assigned_indexes)
             )
         )
+
         pbar = tqdm(all_combos, desc="Scanning")
 
         for combo in pbar:
             for day in range(DAYS):
-                grid = PruningGrid.construct(self.all_courses)
-                clashing = grid.prune_day(day + 1)
+                clashing = self.pruning_grid.prune_day(day + 1)
                 new_pruned = self.add_new_pruned(clashing)
                 self.solve(set(combo))
                 self.remove_pruned(new_pruned)
@@ -103,19 +99,7 @@ if __name__ == "__main__":
     from load import process_all_courses
     from ui import TimetableGUI
 
-    target_courses = [
-        "AB1201",
-        "AB1601",
-        "SC2001",
-        "SC2002",
-        "AD1102",
-        "CC0001",
-        "SC1006",
-        "SC2203",
-        "AB2008",
-        "BC2406",
-    ]
-    extracted_courses = process_all_courses("raw_data", target_courses=target_courses)
+    extracted_courses = process_all_courses("raw_data")
     assigned_indexes = {
         "AB1201": "00182",
         "AB1601": "00871",
