@@ -2,9 +2,7 @@ from typing import Dict, List
 
 from tabulate import tabulate
 
-from load import process_all_courses
 from models import Course
-from planner import run_planner
 
 
 def display_timetable(course_list: List[Course], assigned_indexes: Dict[str, str]):
@@ -42,29 +40,3 @@ def display_timetable(course_list: List[Course], assigned_indexes: Dict[str, str
 
     headers = ["Time"] + days
     print(tabulate(table_data, headers=headers, tablefmt="grid", stralign="center"))
-
-
-# --- Integration with your CSP Solver ---
-if __name__ == "__main__":
-    # 1. Run your solver
-    target_courses = [
-        "AB1201",
-        "AB1601",
-        "SC2001",
-        "SC2002",
-        "AD1102",
-        "CC0001",
-        "SC1006",
-        "SC2203",
-        "AB2008",
-        "BC2406",
-    ]
-    all_courses = process_all_courses("raw_data", target_courses=target_courses)
-    target_num = 7
-    result = run_planner(list(all_courses.values()), target_num)
-
-    # 2. If successful, display:
-    if result:
-        for r in result:
-            print(r)
-            display_timetable(list(all_courses.values()), {k: v for k, v in r[1]})

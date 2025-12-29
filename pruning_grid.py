@@ -1,66 +1,56 @@
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Iterable
+
 from load import process_all_courses
 from models import DAYS, TIMESLOTS, Course, Lesson
 
 
+@dataclass
 class PruningGrid:
-    def __init__(
-        self, all_courses: dict[str, Course], registered_indexes: dict[str, str] = {}
-    ):
-        self.all_courses = all_courses
-        self.grid = [[set() for _ in range(TIMESLOTS)] for _ in range(DAYS)]
-        for course in all_courses.values():
+    all_courses: dict[str, Course]
+    # 2D grid of sets of (course_code, index)
+    grid: tuple[tuple[frozenset[tuple[str, str]]]]
+
+    @classmethod
+    def construct(cls, all_courses: dict[str, Course]) -> "PruningGrid":
+        grid = [[[] for slot in range(TIMESLOTS)] for day in range(DAYS)]
+        for code, course in all_courses.items():
             for index, lessons in course.indexes.items():
                 for lesson in lessons:
                     for day, start in lesson.periods:
-                        slot = self.slot(day, start)
-                        slot.add((course.code, index))
-        for course_code, index in registered_indexes.items():
-            for lesson in all_courses[course_code].indexes[index]:
-                self.prune(lesson)
+                        slot = grid[day - 1][start - 8]
+                        slot.append((code, index))
+        frozen_grid = tuple(tuple(frozenset(slot) for slot in day) for day in grid)
+        return cls(all_courses, frozen_grid)  # type: ignore
 
-    def slot(self, day: int, start: int) -> set:
+    def slot(self, day: int, start: int) -> frozenset:
         if day < 1 or day > DAYS or start < 8 or start >= 8 + TIMESLOTS:
             raise ValueError("Invalid day or start time for slot retrieval.")
         return self.grid[day - 1][start - 8]
 
-    def remove_lesson(self, course: str, index: str, lesson: Lesson) -> None:
-        for day, start in lesson.periods:
-            slot = self.slot(day, start)
-            slot -= {(course, index)}
+    def clashing_indexes(self, lessons: Iterable[Lesson]) -> defaultdict[str, set[str]]:
+        indexes = defaultdict(set)
+        for lesson in lessons:
+            for day, start in lesson.periods:
+                slot = self.slot(day, start)
+                for code, index in slot:
+                    indexes[code].add(index)
+        return indexes
 
-    def remove_index(self, course: str, index: str) -> None:
-        for lesson in self.all_courses[course].indexes[index]:
-            self.remove_lesson(course, index, lesson)
-
-    def prune(self, lesson: Lesson) -> None:
-        indexes = set()
-        for day, start in lesson.periods:
-            slot = self.slot(day, start)
-            indexes |= slot
-        for course, index in indexes:
-            self.remove_index(course, index)
-
-    def prune_day(self, day: int) -> None:
+    def prune_day(self, day: int) -> defaultdict[str, set[str]]:
+        indexes = defaultdict(set)
         for start in range(8, 8 + TIMESLOTS):
             slot = self.slot(day, start)
-            for course, index in slot.copy():
-                self.remove_index(course, index)
-
-    def __str__(self):
-        return str(self.grid)
+            for code, index in slot:
+                indexes[code].add(index)
+        return indexes
 
 
 if __name__ == "__main__":
-    # ab1201 = process_all_courses("raw_data", ["AB1201"])
-    # pg = PruningGrid(ab1201)
-    # print(pg)
-    # # Example usage:
-    # lesson = Lesson(lesson_type="Lec", day=1, start=11, duration=3)
-    # pg.prune(lesson)  # Prune slots on Monday from 10am for 2 hours
-    # print(pg)
-
+    lesson = Lesson(lesson_type="Lec", day=3, start=10, duration=2)
     sc2001 = process_all_courses("raw_data", ["SC2001"])
-    pg2 = PruningGrid(sc2001)
-    print(pg2)
-    pg2.prune_day(3)  # Prune all slots on Wednesday
-    print(pg2)
+    print(sc2001["SC2001"].indexes)
+    pg = PruningGrid.construct(sc2001)
+    print(pg.prune_day(3))
+    print(pg.clashing_indexes([lesson]))

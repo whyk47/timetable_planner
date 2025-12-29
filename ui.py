@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from load import process_all_courses
-from planner import run_planner
 
 
 class TimetableGUI:
@@ -135,39 +134,9 @@ class TimetableGUI:
             self.current_index += 1
             self.update_view()
         else:
-            messagebox.showinfo("End", "This is the last of the top 20 schedules.")
+            messagebox.showinfo("End", "This is the last schedule.")
 
     def prev_sol(self):
         if self.current_index > 0:
             self.current_index -= 1
             self.update_view()
-
-
-if __name__ == "__main__":
-    # 1. Run your solver
-    target_courses = [
-        "AB1201",
-        "AB1601",
-        "SC2001",
-        "SC2002",
-        "AD1102",
-        "CC0001",
-        "SC1006",
-        # "SC2203",
-        # "AB2008",
-        "BC2406",
-    ]
-    all_courses = process_all_courses("raw_data", target_courses=target_courses)
-    target_num = 7
-    result = run_planner(
-        list(all_courses.values()),
-        {"AB1201": "00182", "AB1601": "00871", "AD1102": "00109"},
-        target_num,
-    )
-
-    # 2. Launch the Pop-up Window
-    # results should be sorted: tracker.get_sorted_results()
-    if result:
-        TimetableGUI(result, all_courses)
-    else:
-        print("No valid timetable could be generated.")
