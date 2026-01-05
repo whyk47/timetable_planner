@@ -25,35 +25,22 @@ class Parser:
         ) as f:
             soup = BeautifulSoup(f.read(), "html.parser")
 
-        # Target rows that contain an index selection dropdown
-        # This prevents picking up header or legend rows
         rows = soup.find_all("tr")
-
         for row in rows:
-            # 1. Find the index dropdown in the current row
             select_tag = row.find("select", attrs={"name": "index_nmbr"})
             if not select_tag:
                 continue
-
-            # 2. Find the Course Code in the same row
-            # It is located in a <font size="-1"> tag as specified
             course_font = row.find("font", attrs={"size": "-1"})
             if not course_font:
                 continue
-
             course_code = course_font.get_text(strip=True)  # e.g., 'AB1201'
             if len(course_code) != 6:
                 continue
 
-            # 3. Extract all options from the dropdown
             options = select_tag.find_all("option")
             for option in options:
                 text = option.get_text(strip=True)
-
-                # Regex to capture: Index / Vacancy / Wait
-                # Example text: "00160 / 0 / 0 "
                 match = re.search(r"(\d{5})\s*/\s*(\d+)\s*/\s*(\d+)", text)
-
                 if match:
                     index, vacancy = (match.group(1), int(match.group(2)))
                     self.vacancies[course_code][index] = vacancy
@@ -140,17 +127,14 @@ class Parser:
         )
 
     def process_all_courses(self, target_courses: list[str] = []):
-        # Ensure the folder exists
         if not os.path.exists(self.folder_path):
             print(f"Error: Folder '{self.folder_path}' not found.")
             return {}
         self.extract_vacancy_data()
-        # Get all .html files in the directory
         files = [f for f in os.listdir(self.folder_path) if f.endswith(".html")]
         print(f"Found {len(files)} course files. Starting extraction...")
 
         for file_name in files:
-            # Extract the course code from the filename
             match = re.search(r"([A-Z]{2}\d{4})\.html", file_name)
             if not match:
                 continue
