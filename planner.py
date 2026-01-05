@@ -62,7 +62,7 @@ class Planner:
 
     def solve(self, combo: set[str]):
         if len(self.assigned_indexes) == self.target_num:
-            self.solution_heap.add_solution(self.assigned_indexes.copy())
+            self.solution_heap.add_assignment(self.assigned_indexes.copy())
             return
         course_code = self.mrv(combo)
         course_indexes = self.all_courses[course_code].indexes

@@ -5,7 +5,7 @@ from itertools import combinations
 
 from tqdm import tqdm
 
-from models import DAYS, Course
+from models import DAYS, Course, Solution
 from pruning_grid import PruningGrid, PruningList
 from solution_heap import HeapEntry, SolutionHeap
 
@@ -41,7 +41,7 @@ class Planner:
             self.pruned_indexes = PruningGrid.add_new_pruned(
                 clashing, self.pruned_indexes
             )
-        self.solution_heap = SolutionHeap(self.all_courses)
+        self.solution_heap = SolutionHeap(self.all_courses, self.assigned_indexes)
 
     def mrv(
         self, combo: set[str], unassigned_courses: set[str], pruned_indexes: PruningList
@@ -64,7 +64,7 @@ class Planner:
         solution_heap: SolutionHeap,
     ):
         if len(assigned_indexes) == self.target_num:
-            solution_heap.add_solution(assigned_indexes.copy())
+            solution_heap.add_assignment(assigned_indexes.copy())
             return
         course_code = self.mrv(combo, unassigned_courses, pruned_indexes)
         course_indexes = self.all_courses[course_code].indexes
@@ -90,12 +90,14 @@ class Planner:
             )
         unassigned_courses.add(course_code)
 
-    def worker_task(self, combo: set[str], limit: int) -> list[HeapEntry]:
+    def worker_task(self, combo: set[str], limit: int) -> list[Solution]:
         """
         Standalone function to handle a single combination.
         This runs in a separate process.
         """
-        local_solutions = SolutionHeap(self.all_courses, limit=limit)
+        local_solutions = SolutionHeap(
+            self.all_courses, self.assigned_indexes, limit=limit
+        )
 
         for day in range(DAYS):
             clashing = self.pruning_grid.prune_day(day + 1)
@@ -113,7 +115,7 @@ class Planner:
             pruned = self.pruning_grid.remove_new_pruned(new_pruned, pruned)
         return local_solutions.get_sorted_results()
 
-    def run_planner(self) -> list[HeapEntry]:
+    def run_planner(self) -> list[Solution]:
         all_combos = tuple(
             combinations(
                 self.unassigned_courses, self.target_num - len(self.assigned_indexes)
@@ -131,29 +133,36 @@ class Planner:
             ):
                 try:
                     found_sols = future.result()
-                    for entry in found_sols:
-                        self.solution_heap.add_heap_entry(entry)
+                    for sol in found_sols:
+                        self.solution_heap.add_solution(sol)
                 except Exception as exc:
                     print(f"Combination generated an exception: {exc}")
         return self.solution_heap.get_sorted_results()
 
 
 if __name__ == "__main__":
-    from load import process_all_courses
+    from extract import Parser
     from ui import TimetableGUI
 
-    extracted_courses = process_all_courses("raw_data")
+    target_courses = [
+        "AB1201",
+        "AB1601",
+        "AD1102",
+        "CC0001",
+        "SC1006",
+        "SC2001",
+        "SC2002",
+    ]
+    parser = Parser("mods")
+    parser.process_all_courses(target_courses)
     assigned_indexes = {
         # "AB1201": "00182",
         # "AB1601": "00871",
         # "AD1102": "00109",
     }
-    planner = Planner(
-        extracted_courses, target_num=7, assigned_indexes=assigned_indexes
-    )
+    planner = Planner(parser.courses, target_num=7, assigned_indexes=assigned_indexes)
     solutions = planner.run_planner()
-
     if solutions:
-        TimetableGUI(solutions, extracted_courses)
+        TimetableGUI(solutions, parser.courses)
     else:
         print("No solutions found.")

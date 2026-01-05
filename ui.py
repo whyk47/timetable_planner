@@ -1,8 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from load import process_all_courses
-
 
 class TimetableGUI:
     def __init__(self, top_results, courses_map):
@@ -94,16 +92,22 @@ class TimetableGUI:
 
     def update_view(self):
         # Get data for current rank
-        score, assignment = self.top_results[self.current_index]
-        f_days, streak, morning_lessons, aus = score
+        solution = self.top_results[self.current_index]
+        _, f_days, streak, morning_lessons, aus = solution.score
 
         # Update Labels
         self.title_label.config(text=f"Rank #{self.current_index + 1}")
         self.score_label.config(
-            text=f"Score: {f_days} Free Days | Longest Streak: {streak} Days | Morning Blues: {-morning_lessons} | AUs: {aus}"
+            text=f"{len(solution.vacancy_shortfall)} Indexes without vacancy | {f_days} Free Days | Longest Streak: {streak} Days | Morning Blues: {-morning_lessons} | AUs: {aus}"
         )
         self.mods_label.config(
-            text="Indexes:\n" + ", ".join([f"{k}: {v}" for k, v in assignment])
+            text="Indexes:\n"
+            + ", ".join(
+                [
+                    f"{k}: {v}{' NO VACANCY' if (k, v) in solution.vacancy_shortfall else ''}"
+                    for k, v in solution.assignment.items()
+                ]
+            )
         )
 
         # Clear and Rebuild Grid
@@ -118,8 +122,8 @@ class TimetableGUI:
             for day in days:
                 cell_text = ""
                 # Find if any course is in this slot
-                for code, idx in assignment:
-                    for lesson in self.courses_map[code].indexes[idx]:
+                for code, idx in solution.assignment.items():
+                    for lesson in self.courses_map[code].get_index(idx).lessons:
                         if (
                             lesson.day == day
                             and hour >= lesson.start

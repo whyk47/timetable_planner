@@ -1,9 +1,9 @@
 import heapq
 from dataclasses import dataclass, field
 
-from models import DAYS, Course
+from models import DAYS, Course, Solution
 
-type Score = tuple[int, int, int, int]  # (free_days, max_streak, -morning_lessons)
+type Score = tuple[int, ...]  # (free_days, max_streak, -morning_lessons)
 type Assignment = tuple[tuple[str, str], ...]  # ((course_code, index), ...)
 type HeapEntry = tuple[Score, Assignment]
 
@@ -11,14 +11,21 @@ type HeapEntry = tuple[Score, Assignment]
 @dataclass
 class SolutionHeap:
     all_courses: dict[str, Course]
+    assigned_indexes: dict[str, str]
     limit: int = 50
-    heap: list[HeapEntry] = field(default_factory=list)
+    heap: list[Solution] = field(default_factory=list)
 
-    def get_score(self, assignment: dict[str, str]) -> Score:
+    def get_solution(self, assignment: dict[str, str]) -> Solution:
         morning_lessons, busy_days = 0, [False] * (DAYS + 1)
         mandatory = {"Tut", "Sem", "Lab"}
+        vacancy_shortfall = set()
         for code, idx in assignment.items():
-            for lesson in self.all_courses[code].indexes[idx]:
+            if (
+                code not in self.assigned_indexes
+                and not self.all_courses[code].get_index(idx).vacant
+            ):
+                vacancy_shortfall.add((code, idx))
+            for lesson in self.all_courses[code].get_index(idx).lessons:
                 if any(m in lesson.lesson_type for m in mandatory):
                     busy_days[lesson.day - 1] = True
                     if lesson.start < 9:
@@ -33,19 +40,27 @@ class SolutionHeap:
                 cur_streak += 1
                 max_streak = max(max_streak, cur_streak)
         aus = sum(self.all_courses[code].aus for code in assignment)
-        return DAYS + 1 - sum(busy_days), max_streak, -morning_lessons, aus
+        score = (
+            -len(vacancy_shortfall),
+            DAYS + 1 - sum(busy_days),
+            max_streak,
+            -morning_lessons,
+            aus,
+        )
+        return Solution(
+            assignment=assignment, vacancy_shortfall=vacancy_shortfall, score=score
+        )
 
-    def add_solution(self, assignment: dict[str, str]):
-        score = self.get_score(assignment)
-        entry = (score, tuple(assignment.items()))
-        self.add_heap_entry(entry)
+    def add_assignment(self, assignment: dict[str, str]):
+        solution = self.get_solution(assignment)
+        self.add_solution(solution)
 
-    def add_heap_entry(self, entry: HeapEntry):
+    def add_solution(self, solution: Solution):
         if len(self.heap) < self.limit:
-            heapq.heappush(self.heap, entry)
+            heapq.heappush(self.heap, solution)
         else:
-            if entry[0] > self.heap[0][0]:
-                heapq.heapreplace(self.heap, entry)
+            if solution > self.heap[0]:
+                heapq.heapreplace(self.heap, solution)
 
-    def get_sorted_results(self) -> list[HeapEntry]:
-        return sorted(self.heap, key=lambda x: x[0], reverse=True)
+    def get_sorted_results(self) -> list[Solution]:
+        return sorted(self.heap, reverse=True)

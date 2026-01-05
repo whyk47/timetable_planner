@@ -109,6 +109,7 @@ class StarsDownloader:
         with open(f"mods/{course_code}.html", "w", encoding="utf-8") as f:
             f.write(self.driver.page_source)
         print(f"Page source saved to {course_code}.html")
+        self.driver.close()
         self.driver.switch_to.window(original_window)
 
     def download_stars_page(self):
@@ -141,6 +142,19 @@ if __name__ == "__main__":
     downloader = StarsDownloader(headless=True)
     if downloader.login():
         # You can now loop through multiple modules
-        target_mods = ["SC2000", "AD1102"]
+        target_mods = [
+            "SC2000",
+            "AD1102",
+            "AB1201",
+            "AB1601",
+            "AB1501",
+            "AB2008",
+            "BC2406",
+            "SC1006",
+            "SC2001",
+            "SC2002",
+            "SC2203",
+            "CC0001",
+        ]
         downloader.scrape_modules(target_mods)
     downloader.quit()

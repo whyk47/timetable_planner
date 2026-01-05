@@ -1,9 +1,7 @@
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Iterable
+from dataclasses import dataclass
 
-from load import process_all_courses
-from models import DAYS, TIMESLOTS, Course, Lesson
+from models import DAYS, TIMESLOTS, Course, Index, Lesson
 
 type PruningList = defaultdict[str, set[str]] | dict[str, set[str]]
 
@@ -18,11 +16,11 @@ class PruningGrid:
     def construct(cls, all_courses: dict[str, Course]) -> "PruningGrid":
         grid = [[[] for slot in range(TIMESLOTS)] for day in range(DAYS)]
         for code, course in all_courses.items():
-            for index, lessons in course.indexes.items():
-                for lesson in lessons:
+            for idx, index in course.indexes.items():
+                for lesson in index.lessons:
                     for day, start in lesson.periods:
                         slot = grid[day - 1][start - 8]
-                        slot.append((code, index))
+                        slot.append((code, idx))
         frozen_grid = tuple(tuple(frozenset(slot) for slot in day) for day in grid)
         return cls(all_courses, frozen_grid)  # type: ignore
 
@@ -31,9 +29,10 @@ class PruningGrid:
             raise ValueError("Invalid day or start time for slot retrieval.")
         return self.grid[day - 1][start - 8]
 
-    def clashing_indexes(self, lessons: Iterable[Lesson]) -> PruningList:
+    def clashing_indexes(self, index: Index) -> PruningList:
+
         indexes = defaultdict(set)
-        for lesson in lessons:
+        for lesson in index.lessons:
             for day, start in lesson.periods:
                 slot = self.slot(day, start)
                 for code, index in slot:
@@ -73,9 +72,11 @@ class PruningGrid:
 
 
 if __name__ == "__main__":
+    from extract import Parser
+
+    parser = Parser("mods")
+    parser.process_all_courses(["SC2001"])
     lesson = Lesson(lesson_type="Lec", day=3, start=10, duration=2)
-    sc2001 = process_all_courses("raw_data", ["SC2001"])
-    print(sc2001["SC2001"].indexes)
-    pg = PruningGrid.construct(sc2001)
+    print(parser.courses["SC2001"].indexes)
+    pg = PruningGrid.construct(parser.courses)
     print(pg.prune_day(3))
-    print(pg.clashing_indexes([lesson]))
