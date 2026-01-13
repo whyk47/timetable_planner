@@ -44,7 +44,8 @@ class PruningGrid:
         for start in range(8, 8 + TIMESLOTS):
             slot = self.slot(day, start)
             for code, index in slot:
-                indexes[code].add(index)
+                if self.all_courses[code].get_index(index).has_physical_lesson(day):
+                    indexes[code].add(index)
         return indexes
 
     @staticmethod

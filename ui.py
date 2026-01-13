@@ -49,7 +49,7 @@ class TimetableGUI:
 
         # Grid Section (Treeview for the Timetable)
         style = ttk.Style()
-        style.configure("Treeview", rowheight=45, font=("Segoe UI", 10))
+        style.configure("Treeview", rowheight=40, font=("Segoe UI", 10))
         style.configure("Treeview.Heading", font=("Segoe UI", 11, "bold"))
 
         self.tree_frame = tk.Frame(

@@ -46,6 +46,12 @@ class Index(BaseModel):
     def vacant(self) -> bool:
         return self.vacancies > 0
 
+    def has_physical_lesson(self, day: int) -> bool:
+        for lesson in self.lessons:
+            if lesson.day == day and lesson.lesson_type in {"Tut", "Lab", "Sem"}:
+                return True
+        return False
+
 
 class Course(BaseModel):
     name: str

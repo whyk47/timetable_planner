@@ -21,26 +21,30 @@ class Planner:
     solution_heap: SolutionHeap = field(init=False)
 
     def __post_init__(self):
-        for course_code, index in self.assigned_indexes.items():
-            index_keys = self.all_courses[course_code].indexes.keys()
-            if index not in index_keys:
-                for k in index_keys:
-                    if index in k:
-                        self.assigned_indexes[course_code] = k
-                        break
+        # for course_code, index in self.assigned_indexes.items():
+        #     index_keys = self.all_courses[course_code].indexes.keys()
+        #     if index not in index_keys:
+        #         for k in index_keys:
+        #             if index in k:
+        #                 self.assigned_indexes[course_code] = k
+        #                 break
 
         self.unassigned_courses = set(
-            c for c in self.all_courses if c not in self.assigned_indexes
+            c for c in self.all_courses  # if c not in self.assigned_indexes
         )
         # prune indexes which clash with assigned indexes
         self.pruning_grid = PruningGrid.construct(self.all_courses)
         for course_code, index in self.assigned_indexes.items():
-            clashing = self.pruning_grid.clashing_indexes(
-                self.all_courses[course_code].indexes[index]
-            )
-            self.pruned_indexes = PruningGrid.add_new_pruned(
-                clashing, self.pruned_indexes
-            )
+            self.all_courses[course_code].get_index(index).vacancies += 1
+
+        self.assigned_indexes = {}
+
+        # clashing = self.pruning_grid.clashing_indexes(
+        #     self.all_courses[course_code].indexes[index]
+        # )
+        # self.pruned_indexes = PruningGrid.add_new_pruned(
+        #     clashing, self.pruned_indexes
+        # )
         self.solution_heap = SolutionHeap(self.all_courses, self.assigned_indexes)
 
     def mrv(
@@ -99,7 +103,7 @@ class Planner:
             self.all_courses, self.assigned_indexes, limit=limit
         )
 
-        for day in range(DAYS):
+        for day in range(DAYS - 3):
             clashing = self.pruning_grid.prune_day(day + 1)
             new_pruned = self.pruning_grid.get_new_pruned(clashing, self.pruned_indexes)
             pruned = self.pruning_grid.add_new_pruned(
@@ -152,13 +156,18 @@ if __name__ == "__main__":
         "SC1006",
         "SC2001",
         "SC2002",
+        "SC2203",
+        "SC2006",
+        "SC2008",
     ]
     parser = Parser("mods")
     parser.process_all_courses(target_courses)
     assigned_indexes = {
-        # "AB1201": "00182",
-        # "AB1601": "00871",
-        # "AD1102": "00109",
+        "SC2002": "10171",
+        "SC2001": "10254",
+        "AB1201": "00182",
+        "AB1601": "00871",
+        "AD1102": "00109",
     }
     planner = Planner(parser.courses, target_num=7, assigned_indexes=assigned_indexes)
     solutions = planner.run_planner()
