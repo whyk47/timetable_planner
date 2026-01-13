@@ -103,7 +103,7 @@ class Planner:
             self.all_courses, self.assigned_indexes, limit=limit
         )
 
-        for day in range(DAYS - 3):
+        for day in range(DAYS):
             clashing = self.pruning_grid.prune_day(day + 1)
             new_pruned = self.pruning_grid.get_new_pruned(clashing, self.pruned_indexes)
             pruned = self.pruning_grid.add_new_pruned(
